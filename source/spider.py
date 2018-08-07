@@ -92,6 +92,7 @@ class MafengwoSpider(object):
         for link in self.links:
             print(f'>>>> getting resorts webpage:', link)
             html = self.getHTML(link).text
+            time.sleep(random.randint(1,3))
             if html:
                 print(f'>>>> Success getting resort {link}.')
                 self.data.append(self.parseResort(html))
@@ -109,6 +110,8 @@ class MafengwoSpider(object):
                         lastLink = self.links.index(link)
                     else:
                         raise ValueError('NetWork Unavailable!')
+        print(len(self.links))
+        print(len(self.data))
         # print(self.data)
         # print(len(self.links))
         # print(len(self.data))
@@ -182,6 +185,7 @@ class MafengwoSpider(object):
         for page in range(pStart, pEnd+1):
             print(f'>>> Getting page {page}')
             html = self.getHTML(self.baseUrl, p=page, q=self.provName).text
+            time.sleep(random.randint(1,3))
             if html:
                 print(f'>>> Success getting page {page}.')
                 selector = etree.HTML(html)
