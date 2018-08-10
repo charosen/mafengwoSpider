@@ -152,6 +152,7 @@ class DataSaver(object):
             self.cursor.executemany(sql, self.resortInfos)
             self.connector.commit()
 
+
     def graphBuilder(self):
         # 文档字符串
         '''
@@ -188,6 +189,7 @@ class DataSaver(object):
             self.client.close()
         elif self.saveMode == 'mysql':
             self.connector.close()
+
 
 # 测试代码：
 if __name__ == '__main__':
