@@ -10,10 +10,12 @@ Define a SpiderProxy class allows users to use IPProxyPool API for their spider.
 import requests
 import json
 import random
+
+from settings import TIMEOUT, PROXY_COUNT, PROXY_MAX
+
 # 全局变量：
-TIMEOUT = (6, 6)
-PROXY_COUNT = 20
-PROXY_MAX = 60
+# TIMEOUT = (6, 6)
+
 
 # 类定义：
 class SpiderProxy(object):
@@ -26,8 +28,7 @@ class SpiderProxy(object):
     '''
 
     # 类静态成员定义
-    selectUrl = "http://127.0.0.1:8000/"
-    deleteUrl = "http://127.0.0.1:8000/delete"
+    api_url = "http://127.0.0.1:8000/"
     # 初始化方法
     def __init__(self):
         # 文档字符串
@@ -37,11 +38,11 @@ class SpiderProxy(object):
         # 方法实现
         self.proxies = list()
         self.counter = dict()
-        self.getProxy()
+        self.get_proxy()
 
 
     # 请求IPProxyPool API方法
-    def getApi(self, url, **para):
+    def request_api(self, url, **para):
         # 文档字符串
         '''
         Sends HTTP Requests to IPProxyPool API.
@@ -57,7 +58,7 @@ class SpiderProxy(object):
          - html : a json of IPProxyPool API data.
         '''
         # 方法实现
-        strProxies = None
+        str_proxies = None
         num = 1
         while True:
             try:
@@ -65,7 +66,7 @@ class SpiderProxy(object):
                 # print(response.encoding)
                 response.raise_for_status()
                 response.encoding = 'utf-8'
-                strProxies = response.text
+                str_proxies = response.text
                 print('>> Request IPProxyPool API Success.')
             except requests.exceptions.Timeout:
                 print(f'>> Timeout Occured: {num} times.')
@@ -75,39 +76,40 @@ class SpiderProxy(object):
                     # 日志记录
                     raise RuntimeError('Exceed Timeout maximum retry times.')
             finally:
-                if strProxies:
+                if str_proxies:
                     break
                 # timeout retry pause.
                 # time.sleep(1)
-        return json.loads(strProxies)
+        return json.loads(str_proxies)
 
 
     # 获取代理IP方法
-    def getProxy(self):
+    def get_proxy(self):
         # 文档字符串
 
         # 方法实现
         print('>>> getting proxies from IPProxyPool.')
-        rawProxies = list()
-        acNum = PROXY_COUNT
-        for typeNum in range(2):
-            rawProxies.extend(self.getApi(self.selectUrl, types=typeNum, count=acNum, country='国内'))
-            print(f'>> acquired types = {typeNum} proxies number:', len(rawProxies))
-            if len(rawProxies) == PROXY_COUNT:
+        raw_proxies = list()
+        ac_num = PROXY_COUNT
+        for type_num in range(2):
+            raw_proxies.extend(self.request_api(self.api_url, types=type_num,
+                                                count=ac_num, country='国内'))
+            print(f'>> acquired types = {type_num} proxies number:', len(raw_proxies))
+            if len(raw_proxies) == PROXY_COUNT:
                 break
-            acNum = PROXY_COUNT - len(rawProxies)
-        print('>>> acquired proxy number:', len(rawProxies))
+            ac_num = PROXY_COUNT - len(raw_proxies)
+        print('>>> acquired proxy number:', len(raw_proxies))
 
-        for proxy in rawProxies:
+        for proxy in raw_proxies:
             url = '%s:%s' % (proxy[0], proxy[1])
             self.proxies.append(url)
-            self.counter[url] = 0
+            self.counter[url] = PROXY_MAX
         print(self.proxies)
         print(self.counter)
         print('>>> success getting proxies.')
 
 
-    def delProxy(self, url):
+    def delete_proxy(self, url):
         # 文档字符串
         '''
         Delete an unavailable ip from IPProxyPool API and pop its counterpart
@@ -120,7 +122,7 @@ class SpiderProxy(object):
         print('>>> delete proxy:', url)
         ip= url.split(':')[0]
         print('>>> delete ip:', ip)
-        self.getApi(self.deleteUrl, ip=ip)
+        self.request_api(''.join([self.api_url, 'delete']), ip=ip)
         for i in range(len(self.proxies)-1, -1, -1):
             if self.proxies[i] == url:
                 self.proxies.pop(i)
@@ -128,18 +130,22 @@ class SpiderProxy(object):
         print(self.proxies)
         print('>>> success deleting proxy:', url)
 
-    def popProxy(self):
+
+    def pop_proxy(self):
         # 文档字符串
 
         # 方法实现
-        if len(self.proxies) == 0:
-            self.getProxy()
+        while True:
+            if len(self.proxies) == 0:
+                self.get_proxy()
 
-        url = random.choice(self.proxies)
-        self.counter[url] += 1
+            url = random.choice(self.proxies)
+            self.counter[url] -= 1
 
-        if self.counter[url] > PROXY_MAX:
-            self.delProxy(url)
+            if self.counter[url] <= 0:
+                self.delete_proxy(url)
+            else:
+                break
 
         return url
 
@@ -147,3 +153,4 @@ class SpiderProxy(object):
 # 测试代码：
 if __name__ == '__main__':
     proxyer = SpiderProxy()
+    print(proxyer.pop_proxy())
